@@ -7,8 +7,8 @@
  *
  * @format
  */
-import Api from './api';
-import HTTP_STATUS from './http-status';
+import Api from "./api";
+import HTTP_STATUS from "./http-status";
 const axios = require("axios");
 
 /**
@@ -29,12 +29,19 @@ export default class Http {
     data: Object,
     files: Object,
     useMultipartFormData: Boolean,
-    showHeader: Boolean,
+    showHeader: Boolean
   ): Promise<*> {
-    if (typeof window !== 'undefined' && window.XMLHttpRequest) {
+    if (typeof window !== "undefined" && window.XMLHttpRequest) {
       return Http.xmlHttpRequest(method, url, data);
     }
-    return Http.requestPromise(method, url, data, files, useMultipartFormData, showHeader);
+    return Http.requestPromise(
+      method,
+      url,
+      data,
+      files,
+      useMultipartFormData,
+      showHeader
+    );
   }
 
   /**
@@ -48,7 +55,7 @@ export default class Http {
     return new Promise((resolve, reject) => {
       const request = new window.XMLHttpRequest();
       request.open(method, url);
-      request.onload = function() {
+      request.onload = function () {
         try {
           const response = JSON.parse(request.response);
 
@@ -59,7 +66,7 @@ export default class Http {
               new Error({
                 body: response,
                 status: request.status,
-              }),
+              })
             );
           }
         } catch (e) {
@@ -67,12 +74,12 @@ export default class Http {
             new Error({
               body: request.responseText,
               status: request.status,
-            }),
+            })
           );
         }
       };
-      request.setRequestHeader('Content-Type', 'application/json');
-      request.setRequestHeader('Accept', 'application/json');
+      request.setRequestHeader("Content-Type", "application/json");
+      request.setRequestHeader("Accept", "application/json");
       request.send(JSON.stringify(data));
     });
   }
@@ -96,30 +103,48 @@ export default class Http {
     data: Object,
     files: Object,
     useMultipartFormData: Boolean = false,
-    showHeader: Boolean = false,
+    showHeader: Boolean = false
   ): Promise<*> {
-    const options = {
+    var options = {
       method: method,
       url: url,
-      baseURL: Api.GRAPH,
+      baseURL: FacebookAdsApi.GRAPH,
       json: !useMultipartFormData,
-      headers: {'User-Agent': `fbbizsdk-nodejs-v${Api.SDK_VERSION}`},
-      data: Object,
+      headers: {
+        "User-Agent": "fbbizsdk-nodejs-v" + FacebookAdsApi.SDK_VERSION,
+      },
+      data: method === "GET" ? undefined : data,
       resolveWithFullResponse: showHeader,
     };
-    // Prevent null or undefined input
-    // because it can be merged with the files argument later
-    if (!data) {
-      data = {};
-    }
 
-    options.data = data;
-
-    // Handle file attachments if provided
     if (useMultipartFormData || (files && Object.keys(files).length > 0)) {
-      // Use formData instead of body (required by the request-promise library)
-      options.data = Object.assign(data, files);
-      delete options.data;
+      console.log("here coming");
+
+      // Create a new FormData object
+      const formData = new FormData();
+
+      // Append all the data fields to FormData
+      if (data) {
+        Object.keys(data).forEach((key) => {
+          formData.append(key, data[key]);
+        });
+      }
+
+      // Append all the files to FormData
+      if (files) {
+        Object.keys(files).forEach((key) => {
+          formData.append(key, files[key]); // `files[key]` should be a `Blob` or `File` object
+        });
+      }
+
+      // Update Axios options to use FormData
+      options.data = formData;
+
+      // Ensure the correct headers for FormData
+      options.headers = {
+        ...options.headers,
+        "Content-Type": "multipart/form-data",
+      };
     }
 
     return axios(options).catch((response: Object) => {
